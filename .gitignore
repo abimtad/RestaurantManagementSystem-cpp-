@@ -2,3 +2,4 @@ README.md
 main
 restaurant
 *.json
+tests.cpp
