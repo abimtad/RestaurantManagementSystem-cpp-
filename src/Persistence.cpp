@@ -192,7 +192,9 @@ bool Persistence::loadState(OrderManager& manager, const std::string& path) {
             if (extractString(obj, "status", statusText)) {
                 OrderStatus s;
                 if (OrderStatusStrings::fromString(statusText, s)) {
-                    order.status = s;
+                    // Normalize loaded orders: treat previously "Placed" as "Queued"
+                    // so they immediately sit in the kitchen queue.
+                    order.status = (s == OrderStatus::Placed) ? OrderStatus::Queued : s;
                 }
             }
             long long placed = 0, started = 0, ready = 0, served = 0;
