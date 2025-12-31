@@ -152,15 +152,29 @@ void OrderManager::reset() {
     active_.clearAll();
     normalQueue_ = IntQueue(256);
     vipHeap_ = VipHeap();
+    menu_ = MenuBST();
     nextId_ = 1;
+    nextMenuId_ = 1;
 }
 
-bool OrderManager::addMenuItem(int itemId, const std::string& name, int defaultPrepMinutes) {
+int OrderManager::addMenuItem(const std::string& name, int defaultPrepMinutes, int itemId) {
+    if (name.empty() || defaultPrepMinutes <= 0) return -1;
     MenuItem item;
-    item.itemId = itemId;
+    if (itemId <= 0) {
+        item.itemId = nextMenuId_++;
+    } else {
+        item.itemId = itemId;
+        if (itemId >= nextMenuId_) {
+            nextMenuId_ = itemId + 1;
+        }
+    }
     item.name = name;
     item.defaultPrepMinutes = defaultPrepMinutes;
-    return menu_.insert(item);
+    bool inserted = menu_.insert(item);
+    if (!inserted) {
+        return -1;
+    }
+    return item.itemId;
 }
 
 bool OrderManager::removeMenuItem(const std::string& name) {
@@ -171,7 +185,7 @@ MenuItem* OrderManager::findMenuItem(const std::string& name) {
     return menu_.find(name);
 }
 
-std::vector<MenuItem> OrderManager::listMenuItems() {
+std::vector<MenuItem> OrderManager::listMenuItems() const {
     std::vector<MenuItem> items;
     menu_.inOrder([&](const MenuItem& m) {
         items.push_back(m);

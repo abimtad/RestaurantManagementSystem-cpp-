@@ -112,9 +112,11 @@ bool Persistence::saveState(const OrderManager& manager, const std::string& path
     std::ostringstream out;
     auto orders = manager.snapshotAll();
     auto normalIds = manager.normalQueue().snapshot();
+    auto menuItems = manager.listMenuItems();
 
     out << "{\n";
     out << "  \"nextId\": " << manager.nextIdValue() << ",\n";
+    out << "  \"nextMenuId\": " << manager.nextMenuIdValue() << ",\n";
     out << "  \"orders\": [\n";
     for (size_t i = 0; i < orders.size(); ++i) {
         const Order& o = orders[i];
@@ -139,6 +141,14 @@ bool Persistence::saveState(const OrderManager& manager, const std::string& path
         if (i + 1 < normalIds.size()) out << ",";
     }
     out << "],\n";
+    out << "  \"menu\": [\n";
+    for (size_t i = 0; i < menuItems.size(); ++i) {
+        const auto& m = menuItems[i];
+        out << "    {\"id\": " << m.itemId << ", \"name\": \"" << escape(m.name) << "\", \"prep\": " << m.defaultPrepMinutes << "}";
+        if (i + 1 < menuItems.size()) out << ",";
+        out << "\n";
+    }
+    out << "  ],\n";
     out << "  \"version\": 1\n";
     out << "}\n";
 
@@ -156,6 +166,9 @@ bool Persistence::loadState(OrderManager& manager, const std::string& path) {
     int nextId = 1;
     extractInt(content, "nextId", nextId);
     manager.setNextId(nextId);
+    int nextMenuId = 1;
+    extractInt(content, "nextMenuId", nextMenuId);
+    manager.setNextMenuId(nextMenuId);
 
     // Parse orders array
     auto ordersPos = content.find("\"orders\"");
@@ -214,6 +227,31 @@ bool Persistence::loadState(OrderManager& manager, const std::string& path) {
             manager.vipHeap().push(e);
         }
     });
+
+    // Load menu items
+    auto menuPos = content.find("\"menu\"");
+    if (menuPos != std::string::npos) {
+        auto arrayStart = content.find('[', menuPos);
+        auto arrayEnd = content.find(']', arrayStart);
+        size_t cursor = arrayStart;
+        while (true) {
+            auto objStart = content.find('{', cursor);
+            if (objStart == std::string::npos || objStart > arrayEnd) break;
+            auto objEnd = content.find('}', objStart);
+            if (objEnd == std::string::npos) break;
+            std::string obj = content.substr(objStart, objEnd - objStart + 1);
+
+            MenuItem item;
+            extractInt(obj, "id", item.itemId);
+            extractString(obj, "name", item.name);
+            extractInt(obj, "prep", item.defaultPrepMinutes);
+            if (!item.name.empty() && item.defaultPrepMinutes > 0) {
+                manager.addMenuItem(item.name, item.defaultPrepMinutes, item.itemId);
+            }
+
+            cursor = objEnd + 1;
+        }
+    }
 
     return true;
 }

@@ -34,6 +34,11 @@ public:
         inOrderInternal(root_, fn);
     }
 
+    template <typename Func>
+    void inOrder(Func fn) const {
+        inOrderInternalConst(root_, fn);
+    }
+
 private:
     MenuNode* root_{nullptr};
 
@@ -48,5 +53,13 @@ private:
         inOrderInternal(node->left, fn);
         fn(node->data);
         inOrderInternal(node->right, fn);
+    }
+
+    template <typename Func>
+    void inOrderInternalConst(MenuNode* node, Func fn) const {
+        if (!node) return;
+        inOrderInternalConst(node->left, fn);
+        fn(node->data);
+        inOrderInternalConst(node->right, fn);
     }
 };

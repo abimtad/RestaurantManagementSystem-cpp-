@@ -40,14 +40,16 @@ public:
     size_t activeCount() const { return active_.size(); }
     int nextIdValue() const { return nextId_; }
     void setNextId(int value) { nextId_ = value; }
+    int nextMenuIdValue() const { return nextMenuId_; }
+    void setNextMenuId(int value) { nextMenuId_ = value; }
     /** Clears all internal structures to allow a fresh load from disk. */
     void reset();
 
     /** Menu operations using BST. */
-    bool addMenuItem(int itemId, const std::string& name, int defaultPrepMinutes);
+    int addMenuItem(const std::string& name, int defaultPrepMinutes, int itemId = 0);
     bool removeMenuItem(const std::string& name);
     MenuItem* findMenuItem(const std::string& name);
-    std::vector<MenuItem> listMenuItems();
+    std::vector<MenuItem> listMenuItems() const;
 
     // Expose internal snapshots for persistence
     std::vector<Order> snapshotAll() const;
@@ -57,6 +59,8 @@ public:
     const VipHeap& vipHeap() const { return vipHeap_; }
     OrderList& registry() { return active_; }
     const OrderList& registry() const { return active_; }
+    const MenuBST& menu() const { return menu_; }
+    MenuBST& menu() { return menu_; }
 
 private:
     OrderList active_;
@@ -65,6 +69,7 @@ private:
     WorkflowGraph workflow_;
     MenuBST menu_;
     int nextId_{1};
+    int nextMenuId_{1};
 
     bool transition(Order& order, OrderStatus to);
 };

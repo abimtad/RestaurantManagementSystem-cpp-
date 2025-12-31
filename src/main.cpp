@@ -4,6 +4,8 @@
 #include <limits>
 #include <cstdlib>
 #include <iomanip>
+#include <ctime>
+#include <cctype>
 #include "OrderManager.h"
 #include "Persistence.h"
 #include "Sorts.h"
@@ -71,12 +73,28 @@ void printOrder(const Order& o) {
               << " | Est: " << o.estimatedPrepMinutes << " min\n";
 }
 
+bool readPositiveInt(const std::string& prompt, int& out) {
+    std::cout << prompt;
+    std::string line = readLine();
+    try {
+        int v = std::stoi(line);
+        if (v > 0) { out = v; return true; }
+    } catch (...) {}
+    std::cout << "Invalid number, must be > 0.\n";
+    return false;
+}
+
 /**
  * Gathers order info and items from user; uses menu defaults when available.
+ * Returns false if critical input is invalid.
  */
-void gatherOrderInput(OrderManager& manager, std::string& customer, bool& vip, int& estimate, std::vector<OrderItem>& items) {
+bool gatherOrderInput(OrderManager& manager, std::string& customer, bool& vip, int& estimate, std::vector<OrderItem>& items) {
     std::cout << "Customer name: ";
     customer = readLine();
+    if (customer.empty()) {
+        std::cout << "Customer name required.\n";
+        return false;
+    }
     std::cout << "VIP (y/n): ";
     std::string vipInput = readLine();
     vip = (!vipInput.empty() && (vipInput[0] == 'y' || vipInput[0] == 'Y'));
@@ -88,10 +106,11 @@ void gatherOrderInput(OrderManager& manager, std::string& customer, bool& vip, i
         std::cout << "  Item name: ";
         std::string name = readLine();
         if (name.empty()) break;
-        std::cout << "  Quantity: ";
-        std::string qtyLine = readLine();
         int qty = 0;
-        try { qty = std::stoi(qtyLine); } catch (...) { qty = 0; }
+        if (!readPositiveInt("  Quantity: ", qty)) {
+            std::cout << "  Skipping this item due to invalid quantity.\n";
+            continue;
+        }
         OrderItem it;
         it.name = name;
         it.quantity = qty;
@@ -107,10 +126,11 @@ void gatherOrderInput(OrderManager& manager, std::string& customer, bool& vip, i
         estimate = computedEstimate;
         std::cout << "Estimated prep minutes (from menu defaults): " << estimate << "\n";
     } else {
-        std::cout << "Estimated prep minutes: ";
-        std::string estLine = readLine();
-        try { estimate = std::stoi(estLine); } catch (...) { estimate = 0; }
+        if (!readPositiveInt("Estimated prep minutes: ", estimate)) {
+            return false;
+        }
     }
+    return true;
 }
 
 /**
@@ -143,6 +163,23 @@ long long totalOrEstimateSeconds(const Order& o) {
 }
 
 /**
+ * Formats epoch seconds into dd/mm/yyyy hh:mm am/pm, or "-" if unset.
+ */
+std::string formatTimestamp(long long seconds) {
+    if (seconds <= 0) return "-";
+    std::time_t tt = static_cast<std::time_t>(seconds);
+    std::tm* tm = std::localtime(&tt);
+    if (!tm) return "-";
+    std::ostringstream ss;
+    ss << std::put_time(tm, "%d/%m/%Y %I:%M %p");
+    std::string out = ss.str();
+    for (char& c : out) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return out;
+}
+
+/**
  * Pretty table for order lists.
  */
 void printOrdersTable(const std::vector<Order>& orders) {
@@ -151,34 +188,56 @@ void printOrdersTable(const std::vector<Order>& orders) {
         return;
     }
     auto timeStr = [](long long s) {
-        if (s <= 0) return std::string("-");
-        return std::to_string(s);
+        return formatTimestamp(s);
     };
 
     std::cout << std::left
               << std::setw(5) << "ID"
-              << std::setw(12) << "Customer"
+              << std::setw(14) << "Customer"
               << std::setw(5) << "VIP"
               << std::setw(10) << "Status"
               << std::setw(8) << "Est"
-              << std::setw(10) << "Placed"
-              << std::setw(10) << "Started"
-              << std::setw(10) << "Ready"
-              << std::setw(10) << "Served"
+              << std::setw(20) << "Placed"
+              << std::setw(20) << "Started"
+              << std::setw(20) << "Ready"
+              << std::setw(20) << "Served"
               << "\n";
-    std::cout << std::string(70, '-') << "\n";
+    std::cout << std::string(122, '-') << "\n";
 
     for (const auto& o : orders) {
         std::cout << std::left
                   << std::setw(5) << o.id
-                  << std::setw(12) << o.customerName.substr(0, 11)
+                  << std::setw(14) << o.customerName.substr(0, 13)
                   << std::setw(5) << (o.isVip ? "yes" : "no")
                   << std::setw(10) << OrderStatusStrings::toString(o.status)
                   << std::setw(8) << o.estimatedPrepMinutes
-                  << std::setw(10) << timeStr(placedSeconds(o))
-                  << std::setw(10) << timeStr(TimeUtils::toSeconds(o.startedAt))
-                  << std::setw(10) << timeStr(TimeUtils::toSeconds(o.readyAt))
-                  << std::setw(10) << timeStr(TimeUtils::toSeconds(o.servedAt))
+                  << std::setw(20) << timeStr(placedSeconds(o))
+                  << std::setw(20) << timeStr(TimeUtils::toSeconds(o.startedAt))
+                  << std::setw(20) << timeStr(TimeUtils::toSeconds(o.readyAt))
+                  << std::setw(20) << timeStr(TimeUtils::toSeconds(o.servedAt))
+                  << "\n";
+    }
+}
+
+/**
+ * Table for menu items.
+ */
+void printMenuTable(const std::vector<MenuItem>& items) {
+    if (items.empty()) {
+        std::cout << "Menu empty.\n";
+        return;
+    }
+    std::cout << std::left
+              << std::setw(6) << "ID"
+              << std::setw(18) << "Name"
+              << std::setw(10) << "Prep(min)"
+              << "\n";
+    std::cout << std::string(40, '-') << "\n";
+    for (const auto& m : items) {
+        std::cout << std::left
+                  << std::setw(6) << m.itemId
+                  << std::setw(18) << m.name.substr(0, 17)
+                  << std::setw(10) << m.defaultPrepMinutes
                   << "\n";
     }
 }
@@ -197,6 +256,9 @@ void sortOrders(std::vector<Order>& orders, const std::string& metric) {
 int main() {
     OrderManager manager;
     const std::string defaultPath = "data.json";
+
+    // Auto-load from db.json on first run if present
+    Persistence::loadState(manager, "db.json");
 
     clearScreen();
     std::cout << "Restaurant Management CLI (DSA edition)\n";
@@ -219,7 +281,10 @@ int main() {
             bool vip = false;
             int estimate = 0;
             std::vector<OrderItem> items;
-            gatherOrderInput(manager, customer, vip, estimate, items);
+            if (!gatherOrderInput(manager, customer, vip, estimate, items)) {
+                std::cout << "Order creation aborted due to invalid input.\n";
+                continue;
+            }
             OrderNode* node = manager.createOrder(customer, vip, items, estimate);
             printOrder(node->data);
         } else if (cmd == "edit") {
@@ -234,7 +299,10 @@ int main() {
             bool vip = false;
             int estimate = 0;
             std::vector<OrderItem> items;
-            gatherOrderInput(manager, customer, vip, estimate, items);
+            if (!gatherOrderInput(manager, customer, vip, estimate, items)) {
+                std::cout << "Edit aborted due to invalid input.\n";
+                continue;
+            }
             if (manager.editOrder(id, customer, vip, items, estimate)) {
                 std::cout << "Order " << id << " updated.\n";
             } else {
@@ -325,13 +393,17 @@ int main() {
                 std::string name;
                 std::cout << "Menu name: ";
                 name = readLine();
-                std::cout << "Item id (int): ";
-                std::string idLine = readLine();
-                int itemId = 0; try { itemId = std::stoi(idLine); } catch (...) { itemId = 0; }
-                std::cout << "Default prep minutes: ";
-                std::string prepLine = readLine();
-                int prep = 0; try { prep = std::stoi(prepLine); } catch (...) { prep = 0; }
-                if (manager.addMenuItem(itemId, name, prep)) std::cout << "Menu item added.\n"; else std::cout << "Duplicate item name.\n";
+                if (name.empty()) {
+                    std::cout << "Name required.\n";
+                    continue;
+                }
+                int prep = 0;
+                if (!readPositiveInt("Default prep minutes: ", prep)) {
+                    std::cout << "Menu add aborted.\n";
+                    continue;
+                }
+                int assigned = manager.addMenuItem(name, prep);
+                if (assigned > 0) std::cout << "Menu item added with id " << assigned << ".\n"; else std::cout << "Duplicate item name or invalid data.\n";
             } else if (sub == "remove") {
                 std::string name;
                 std::cout << "Menu name: ";
@@ -349,13 +421,7 @@ int main() {
                 }
             } else if (sub == "list") {
                 auto items = manager.listMenuItems();
-                if (items.empty()) {
-                    std::cout << "Menu empty.\n";
-                } else {
-                    for (const auto& m : items) {
-                        std::cout << "Item " << m.itemId << " | " << m.name << " | prep: " << m.defaultPrepMinutes << " min\n";
-                    }
-                }
+                printMenuTable(items);
             } else {
                 std::cout << "Usage: menu add|remove|find|list\n";
             }
