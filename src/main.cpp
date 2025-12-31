@@ -255,7 +255,7 @@ void sortOrders(std::vector<Order>& orders, const std::string& metric) {
 
 int main() {
     OrderManager manager;
-    const std::string defaultPath = "data.json";
+    const std::string defaultPath = "db.json";
 
     // Auto-load from db.json on first run if present
     Persistence::loadState(manager, "db.json");
