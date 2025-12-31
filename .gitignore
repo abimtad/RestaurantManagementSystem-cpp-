@@ -3,3 +3,4 @@ restaurant
 *.json
 tests.cpp
 restaurant_tests
+plan.md
