@@ -71,6 +71,18 @@ void printOrder(const Order& o) {
               << " | VIP: " << (o.isVip ? "yes" : "no")
               << " | Status: " << OrderStatusStrings::toString(o.status)
               << " | Est: " << o.estimatedPrepMinutes << " min\n";
+    if (o.items.empty()) {
+        std::cout << "  Items: none\n";
+    } else {
+        std::cout << "  Items:\n";
+        for (const auto& it : o.items) {
+            std::cout << "    - ";
+            if (it.itemId > 0) {
+                std::cout << "#" << it.itemId << " ";
+            }
+            std::cout << it.name << " x" << it.quantity << "\n";
+        }
+    }
 }
 
 bool readPositiveInt(const std::string& prompt, int& out) {
