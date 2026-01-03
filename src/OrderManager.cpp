@@ -87,6 +87,10 @@ bool OrderManager::serveOrder(int id) {
     return true;
 }
 
+std::vector<OrderStatus> OrderManager::shortestPath(OrderStatus from, OrderStatus to) const {
+    return workflow_.shortestPath(from, to);
+}
+
 bool OrderManager::nextForKitchen(int& orderId) {
     // Prefer VIP
     VipEntry top{};
