@@ -45,6 +45,9 @@ public:
     /** Clears all internal structures to allow a fresh load from disk. */
     void reset();
 
+    /** Shortest valid status path using workflow graph; empty if unreachable. */
+    std::vector<OrderStatus> shortestPath(OrderStatus from, OrderStatus to) const;
+
     /** Menu operations using BST. */
     int addMenuItem(const std::string& name, int defaultPrepMinutes, int itemId = 0);
     bool removeMenuItem(const std::string& name);

@@ -6,6 +6,23 @@
 #include "Persistence.h"
 #include "CliUtils.h"
 
+namespace {
+void printPathSuggestion(OrderManager& manager, OrderStatus from, OrderStatus to) {
+    auto path = manager.shortestPath(from, to);
+    if (path.empty()) {
+        std::cout << "No allowed path from " << OrderStatusStrings::toString(from)
+                  << " to " << OrderStatusStrings::toString(to) << ".\n";
+        return;
+    }
+    std::cout << "Allowed path: ";
+    for (size_t i = 0; i < path.size(); ++i) {
+        std::cout << OrderStatusStrings::toString(path[i]);
+        if (i + 1 < path.size()) std::cout << " -> ";
+    }
+    std::cout << "\n";
+}
+}
+
 int main() {
     OrderManager manager;
     const std::string defaultPath = "db.json";
@@ -76,21 +93,41 @@ int main() {
                 std::cout << "Invalid id.\n";
                 continue;
             }
+            Order* o = manager.getOrder(id);
+            if (!o) {
+                std::cout << "Not found.\n";
+                continue;
+            }
             if (cmd == "start") {
-                if (manager.startOrder(id)) std::cout << "Order " << id << " PREPPING.\n";
-                else std::cout << "Unable to start order.\n";
+                if (manager.startOrder(id)) {
+                    std::cout << "Order " << id << " PREPPING.\n";
+                } else {
+                    std::cout << "Unable to start order.\n";
+                    printPathSuggestion(manager, o->status, OrderStatus::Prepping);
+                }
             } else if (cmd == "ready") {
-                if (manager.readyOrder(id)) std::cout << "Order " << id << " READY.\n";
-                else std::cout << "Unable to mark ready.\n";
+                if (manager.readyOrder(id)) {
+                    std::cout << "Order " << id << " READY.\n";
+                } else {
+                    std::cout << "Unable to mark ready.\n";
+                    printPathSuggestion(manager, o->status, OrderStatus::Ready);
+                }
             } else if (cmd == "serve") {
-                if (manager.serveOrder(id)) std::cout << "Order " << id << " SERVED.\n";
-                else std::cout << "Unable to serve.\n";
+                if (manager.serveOrder(id)) {
+                    std::cout << "Order " << id << " SERVED.\n";
+                } else {
+                    std::cout << "Unable to serve.\n";
+                    printPathSuggestion(manager, o->status, OrderStatus::Served);
+                }
             } else if (cmd == "cancel") {
-                if (manager.cancelOrder(id)) std::cout << "Order " << id << " cancelled.\n";
-                else std::cout << "Unable to cancel.\n";
+                if (manager.cancelOrder(id)) {
+                    std::cout << "Order " << id << " cancelled.\n";
+                } else {
+                    std::cout << "Unable to cancel.\n";
+                    printPathSuggestion(manager, o->status, OrderStatus::Cancelled);
+                }
             } else if (cmd == "show") {
-                Order* o = manager.getOrder(id);
-                if (o) printOrder(*o); else std::cout << "Not found.\n";
+                printOrder(*o);
             }
         } else if (cmd == "list") {
             std::string statusToken;
